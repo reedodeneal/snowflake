@@ -6,29 +6,62 @@ import KeyboardListener from '../components/KeyboardListener'
 import Track from '../components/Track'
 import Wordmark from '../components/Wordmark'
 import LevelThermometer from '../components/LevelThermometer'
-import { eligibleTitles, trackIds, milestones, milestoneToPoints } from '../constants'
+import { milestones, milestoneToPoints, categoryColorScale } from '../constants'
 import PointSummaries from '../components/PointSummaries'
-import type { Milestone, MilestoneMap, TrackId } from '../constants'
+import type { Milestone, MilestoneMap, TrackMap } from '../constants'
 import React from 'react'
-import TitleSelector from '../components/TitleSelector'
+import TeamSelector from '../components/TeamSelector'
+import LoadingOverlay from 'react-loading-overlay'
+
+// workaround until SSR support for react-keycloak is pushed
+const Keycloak = typeof window !== 'undefined' ? require('keycloak-js') : null
+
+const developmentTracks = require('../tracks/development.json')
+const designTracks = require('../tracks/design.json')
+const productTracks = require('../tracks/product.json')
+const qaTracks = require('../tracks/qa.json')
 
 type SnowflakeAppState = {
+  userName: string,
+  preferredName: string,
   milestoneByTrack: MilestoneMap,
-  name: string,
-  title: string,
-  focusedTrackId: TrackId,
+  team: string,
+  activeTracks: TrackMap,
+  focusedTrackId: string,
+  categoryColorScale: Function,
+  loading: bool
 }
 
-const hashToState = (hash: String): ?SnowflakeAppState => {
-  if (!hash) return null
+const tracksByTeam = (team: string): TrackMap => {
+  switch (team) {
+    case 'Design':
+      return designTracks
+    case 'Product':
+      return productTracks
+    case 'Quality Assurance':
+      return qaTracks
+    default:
+      return developmentTracks
+  }
+}
+
+const dataToState = (data: string): ?SnowflakeAppState => {
+  if (!data) return null
+  const json = JSON.parse(data)
+  const hashValues = JSON.stringify(json.tracksByTeam).replace(/["]+/g, '').split(',')
   const result = defaultState()
-  const hashValues = hash.split('#')[1].split(',')
-  if (!hashValues) return null
+  const tracks = tracksByTeam(json.team)
+  result.userName = json.username
+  result.preferredName = json.name
+  result.team = json.team
+  result.activeTracks = tracks
+  result.milestoneByTrack = milestoneByTrack(tracks)
+  result.focusedTrackId = Object.keys(tracks)[0]
+  result.categoryColorScale = categoryColorScale(tracks)
+  const trackIds = Object.keys(result.activeTracks)
   trackIds.forEach((trackId, i) => {
     result.milestoneByTrack[trackId] = coerceMilestone(Number(hashValues[i]))
   })
-  if (hashValues[16]) result.name = decodeURI(hashValues[16])
-  if (hashValues[17]) result.title = decodeURI(hashValues[17])
   return result
 }
 
@@ -45,61 +78,43 @@ const coerceMilestone = (value: number): Milestone => {
   }
 }
 
+const milestoneByTrack = (trackMap: TrackMap): MilestoneMap => {
+  return Object.keys(trackMap).reduce((milestoneMap, trackId) => {
+    milestoneMap[trackId] = 0
+    return milestoneMap
+  }, {})
+}
+
 const emptyState = (): SnowflakeAppState => {
   return {
-    name: '',
-    title: '',
-    milestoneByTrack: {
-      'MOBILE': 0,
-      'WEB_CLIENT': 0,
-      'FOUNDATIONS': 0,
-      'SERVERS': 0,
-      'PROJECT_MANAGEMENT': 0,
-      'COMMUNICATION': 0,
-      'CRAFT': 0,
-      'INITIATIVE': 0,
-      'CAREER_DEVELOPMENT': 0,
-      'ORG_DESIGN': 0,
-      'WELLBEING': 0,
-      'ACCOMPLISHMENT': 0,
-      'MENTORSHIP': 0,
-      'EVANGELISM': 0,
-      'RECRUITING': 0,
-      'COMMUNITY': 0
-    },
-    focusedTrackId: 'MOBILE'
+    userName: '',
+    preferredName: '',
+    team: 'Development',
+    milestoneByTrack: milestoneByTrack(developmentTracks),
+    activeTracks: developmentTracks,
+    focusedTrackId: 'MOBILE',
+    categoryColorScale: categoryColorScale(developmentTracks),
+    loading: true
   }
 }
 
 const defaultState = (): SnowflakeAppState => {
   return {
-    name: 'Cersei Lannister',
-    title: 'Staff Engineer',
-    milestoneByTrack: {
-      'MOBILE': 1,
-      'WEB_CLIENT': 2,
-      'FOUNDATIONS': 3,
-      'SERVERS': 2,
-      'PROJECT_MANAGEMENT': 4,
-      'COMMUNICATION': 1,
-      'CRAFT': 1,
-      'INITIATIVE': 4,
-      'CAREER_DEVELOPMENT': 3,
-      'ORG_DESIGN': 2,
-      'WELLBEING': 0,
-      'ACCOMPLISHMENT': 4,
-      'MENTORSHIP': 2,
-      'EVANGELISM': 2,
-      'RECRUITING': 3,
-      'COMMUNITY': 0
-    },
-    focusedTrackId: 'MOBILE'
+    userName: '',
+    preferredName: '',
+    team: 'Development',
+    milestoneByTrack: milestoneByTrack(developmentTracks),
+    activeTracks: developmentTracks,
+    focusedTrackId: 'MOBILE',
+    categoryColorScale: categoryColorScale(developmentTracks),
+    loading: true
   }
 }
 
-const stateToHash = (state: SnowflakeAppState) => {
+const stateToValuesHash = (state: SnowflakeAppState) => {
   if (!state || !state.milestoneByTrack) return null
-  const values = trackIds.map(trackId => state.milestoneByTrack[trackId]).concat(encodeURI(state.name), encodeURI(state.title))
+  const trackIds = Object.keys(state.activeTracks)
+  const values = trackIds.map(trackId => state.milestoneByTrack[trackId])
   return values.join(',')
 }
 
@@ -111,124 +126,270 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     this.state = emptyState()
   }
 
-  componentDidUpdate() {
-    const hash = stateToHash(this.state)
-    if (hash) window.location.replace(`#${hash}`)
-  }
-
   componentDidMount() {
-    const state = hashToState(window.location.hash)
-    if (state) {
-      this.setState(state)
-    } else {
-      this.setState(defaultState())
+    let initOptions = {
+        url: process.env.REACT_APP_KEYCLOAK_AUTH_URL,
+        realm: process.env.REACT_APP_KEYCLOAK_REALM,
+        clientId: process.env.REACT_APP_KEYCLOAK_CLIENT_ID,
+        onLoad: 'login-required'
+    }
+
+    if(Keycloak) {
+      const keycloak = Keycloak(initOptions); 
+      keycloak.init({ onLoad: initOptions.onLoad }).success((auth) => {
+
+          if (!auth) {
+              window.location.reload();
+          }
+
+          localStorage.setItem("token",keycloak.token)
+          localStorage.setItem("refreshToken",keycloak.refreshToken)
+          let loggedInUsername = keycloak.tokenParsed.preferred_username
+          let loggedInUserPreferredName = keycloak.tokenParsed.name
+
+          setTimeout(() => {
+              keycloak.updateToken(70).success((refreshed) => {
+                  if (refreshed) {
+                      console.debug('Token refreshed' + refreshed);
+                  } else {
+                      console.warn('Token not refreshed, valid for '
+                          + Math.round(keycloak.tokenParsed.exp + keycloak.timeSkew - new Date().getTime() / 1000) + ' seconds');
+                  }
+              }).error(() => {
+                  console.error('Failed to refresh token');
+              });
+          }, 60000)
+
+          var xhr = new XMLHttpRequest()
+          xhr.open('GET', process.env.REACT_APP_BACKEND_URL + '/get?username=' + loggedInUsername)
+          xhr.timeout = 2000
+          xhr.setRequestHeader('Authorization','Bearer ' + keycloak.token)
+          xhr.ontimeout = function () {
+              alert("Request for user data timed out.");
+          };
+          xhr.onerror = function () {
+              alert("Error encountered while making request for user data.");
+          };
+          xhr.send()
+          xhr.addEventListener('load', () => {
+            if(xhr.status == 200) {
+              const d = xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"')
+              this.setState(dataToState(d))
+              this.setState({loading: false})
+            } else if(xhr.status == 404) {
+              this.setState({preferredName:loggedInUserPreferredName})
+              this.setState({userName:loggedInUsername})
+              this.setState({loading: false})
+            } else {
+              alert("Error while trying to load user data from datastore. Unauthorized: " + xhr.status)
+            }
+          })
+
+      }).error(() => {
+          alert("Authentication failed while trying to load user data from datastore.");
+      }).onTokenExpired = () => {
+        keycloak.updateToken(30).success(() => {
+            localStorage.setItem("token",keycloak.token)
+        }).error(() => {
+            alert("Error encountered refreshing auth token.")
+        });
+      };
     }
   }
 
-  render() {
-    return (
-      <main>
-        <style jsx global>{`
-          body {
-            font-family: Helvetica;
+  handleSubmit() {
+    const token = localStorage.getItem("token") || ""
+    const data = {
+      "username": this.state.userName,
+      "name": this.state.preferredName,
+      "tracksByTeam": stateToValuesHash(this.state),
+      "team": this.state.team
+    }
+    this.setState({ loading: true }, () => {
+      setTimeout(() => {
+        fetch(process.env.REACT_APP_BACKEND_URL + '/post', {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Authorization': 'Bearer ' + token
           }
-          main {
-            width: 960px;
-            margin: 0 auto;
-          }
-          .name-input {
-            border: none;
-            display: block;
-            border-bottom: 2px solid #fff;
-            font-size: 30px;
-            line-height: 40px;
-            font-weight: bold;
-            width: 380px;
-            margin-bottom: 10px;
-          }
-          .name-input:hover, .name-input:focus {
-            border-bottom: 2px solid #ccc;
-            outline: 0;
-          }
-          a {
-            color: #888;
-            text-decoration: none;
-          }
-        `}</style>
-        <div style={{margin: '19px auto 0', width: 142}}>
-          <a href="https://medium.com/" target="_blank">
-            <Wordmark />
-          </a>
-        </div>
-        <div style={{display: 'flex'}}>
-          <div style={{flex: 1}}>
-            <form>
-              <input
-                  type="text"
-                  className="name-input"
-                  value={this.state.name}
-                  onChange={e => this.setState({name: e.target.value})}
-                  placeholder="Name"
-                  />
-              <TitleSelector
-                  milestoneByTrack={this.state.milestoneByTrack}
-                  currentTitle={this.state.title}
-                  setTitleFn={(title) => this.setTitle(title)} />
-            </form>
-            <PointSummaries milestoneByTrack={this.state.milestoneByTrack} />
-            <LevelThermometer milestoneByTrack={this.state.milestoneByTrack} />
-          </div>
-          <div style={{flex: 0}}>
-            <NightingaleChart
-                milestoneByTrack={this.state.milestoneByTrack}
-                focusedTrackId={this.state.focusedTrackId}
-                handleTrackMilestoneChangeFn={(track, milestone) => this.handleTrackMilestoneChange(track, milestone)} />
-          </div>
-        </div>
-        <TrackSelector
-            milestoneByTrack={this.state.milestoneByTrack}
-            focusedTrackId={this.state.focusedTrackId}
-            setFocusedTrackIdFn={this.setFocusedTrackId.bind(this)} />
-        <KeyboardListener
-            selectNextTrackFn={this.shiftFocusedTrack.bind(this, 1)}
-            selectPrevTrackFn={this.shiftFocusedTrack.bind(this, -1)}
-            increaseFocusedMilestoneFn={this.shiftFocusedTrackMilestoneByDelta.bind(this, 1)}
-            decreaseFocusedMilestoneFn={this.shiftFocusedTrackMilestoneByDelta.bind(this, -1)} />
-        <Track
-            milestoneByTrack={this.state.milestoneByTrack}
-            trackId={this.state.focusedTrackId}
-            handleTrackMilestoneChangeFn={(track, milestone) => this.handleTrackMilestoneChange(track, milestone)} />
-        <div style={{display: 'flex', paddingBottom: '20px'}}>
-          <div style={{flex: 1}}>
-            Made with ❤️ by <a href="https://medium.engineering" target="_blank">Medium Eng</a>.
-            Learn about the <a href="https://medium.com/s/engineering-growth-framework" target="_blank">this version of our growth framework</a>
-            {' '}and <a href="https://medium.engineering/engineering-growth-at-medium-4935b3234d25" target="_blank">what we do currently</a>.
-            Get the <a href="https://github.com/Medium/snowflake" target="_blank">source code</a>.
-            Read the <a href="https://medium.com/p/85e078bc15b7" target="_blank">terms of service</a>.
-          </div>
-        </div>
-      </main>
-    )
+        }).then(response => {
+            if(!response.status) {
+              throw Error(response.status.toString())
+            } else {
+              this.setState({loading:false})
+            }
+          } ).catch(error => 
+              alert("Failed to fetch user data: " + error))
+              this.setState({loading:false})
+      }, 500); // 500ms delay to briefly load react-loading-spinner onClick()
+    });
+
   }
 
-  handleTrackMilestoneChange(trackId: TrackId, milestone: Milestone) {
+  handleLogout() {
+    this.setState({loading: true}, () => {
+      const token = localStorage.getItem("refreshToken") || ""
+      fetch(process.env.REACT_APP_KEYCLOAK_LOGOUT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: new Headers({
+                   'Content-Type': 'application/x-www-form-urlencoded',
+                   'Authorization': 'Bearer ' + token
+          }),
+        body: "client_id=snowflake&refresh_token=" + token
+      }).then(
+      function(response) {
+      window.location.reload();
+      })
+    });
+  }
+
+  render() {
+    const { loading } = this.state;
+    return (
+    
+      <LoadingOverlay
+        active={loading}
+        spinner
+        text='loading...'
+        styles={{
+          overlay: (base) => ({
+            ...base,
+            background: 'rgba(0, 0, 0, 1)'
+          })
+        }}
+      >
+        <main>
+          <style jsx global>{`
+            body {
+              font-family: Helvetica;
+            }
+            main {
+              width: 960px;
+              margin: 0 auto;
+            }
+            .name-field {
+              border: none;
+              display: block;
+              font-size: 30px;
+              line-height: 40px;
+              fontWeight: bold;
+              padding-left: 12px;
+            }
+            .action-buttons {
+              border: none;
+            }
+            a {
+              color: #888;
+              text-decoration: none;
+            }
+
+          `}</style>
+          <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossOrigin="anonymous"/>
+          {loading ? <LoadingOverlay />:<div/>}
+          <div style={{margin: '19px auto 0', width: 450}}>
+            <a href="https://sagesure.com/" target="_blank">
+              <Wordmark />
+            </a>
+          </div>
+          <div style={{display: 'flex'}}>
+            <div style={{flex: 1}}>
+              
+              <header
+              style={{'width':'525px','marginBottom':'20px','marginTop':'20px','padding':'10px'}}>
+                <div className="name-field">
+                  {this.state.preferredName}
+                </div>
+                
+                <div 
+                  className="team-selector">
+                    <div style={{'marginLeft':'12px','paddingTop':'3px'}}><b>Team: </b>
+                      {this.state.team}
+                    </div>
+                </div>
+                
+                <div className="action-buttons">
+                  <button
+                    type="button"
+                    className="btn btn-link"
+                    onClick={() => {
+                      this.handleSubmit()
+                      }}
+                    >
+                    Save Profile
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-link"
+                      onClick={() => {
+                        this.handleLogout()
+                        }}
+                    >
+                    Logout
+                  </button>
+                </div>
+              <PointSummaries milestoneByTrack={this.state.milestoneByTrack} />
+              </header>
+              <LevelThermometer
+                  milestoneByTrack={this.state.milestoneByTrack}
+                  activeTracks={this.state.activeTracks}
+                  categoryColorScale={this.state.categoryColorScale} />
+            </div>   
+            <div style={{flex: 0}}>
+              <NightingaleChart
+                  milestoneByTrack={this.state.milestoneByTrack}
+                  activeTracks={this.state.activeTracks}
+                  focusedTrackId={this.state.focusedTrackId}
+                  categoryColorScale={this.state.categoryColorScale}
+                  handleTrackMilestoneChangeFn={(track, milestone) => this.handleTrackMilestoneChange(track, milestone)} />
+            </div>
+          </div>
+          <TrackSelector
+              milestoneByTrack={this.state.milestoneByTrack}
+              activeTracks={this.state.activeTracks}
+              focusedTrackId={this.state.focusedTrackId}
+              categoryColorScale={this.state.categoryColorScale}
+              setFocusedTrackIdFn={this.setFocusedTrackId.bind(this)} />
+          <KeyboardListener
+              selectNextTrackFn={this.shiftFocusedTrack.bind(this, 1)}
+              selectPrevTrackFn={this.shiftFocusedTrack.bind(this, -1)}
+              increaseFocusedMilestoneFn={this.shiftFocusedTrackMilestoneByDelta.bind(this, 1)}
+              decreaseFocusedMilestoneFn={this.shiftFocusedTrackMilestoneByDelta.bind(this, -1)} />
+          <Track
+              milestoneByTrack={this.state.milestoneByTrack}
+              track={this.state.activeTracks[this.state.focusedTrackId]}
+              trackId={this.state.focusedTrackId}
+              categoryColorScale={this.state.categoryColorScale}
+              handleTrackMilestoneChangeFn={(track, milestone) => this.handleTrackMilestoneChange(track, milestone)} />
+          <div style={{display: 'flex', paddingBottom: '20px'}}>
+            <div style={{flex: 1}}>
+              <a href="https://sagesure.com/careers">Join</a> the SageSure Team.
+              Based on <a href="https://github.com/Medium/snowflake" target="_blank">Snowflake</a> by <a href="https://medium.engineering" target="_blank">Medium Eng</a>.
+            </div>
+          </div>
+        </main>
+      </LoadingOverlay>
+    )
+
+  }
+
+  handleTrackMilestoneChange(trackId: string, milestone: Milestone) {
     const milestoneByTrack = this.state.milestoneByTrack
     milestoneByTrack[trackId] = milestone
-
-    const titles = eligibleTitles(milestoneByTrack)
-    const title = titles.indexOf(this.state.title) === -1 ? titles[0] : this.state.title
-
-    this.setState({ milestoneByTrack, focusedTrackId: trackId, title })
+    this.setState({ milestoneByTrack, focusedTrackId: trackId })
   }
 
   shiftFocusedTrack(delta: number) {
+    const trackIds = Object.keys(this.state.activeTracks)
     let index = trackIds.indexOf(this.state.focusedTrackId)
     index = (index + delta + trackIds.length) % trackIds.length
     const focusedTrackId = trackIds[index]
     this.setState({ focusedTrackId })
   }
 
-  setFocusedTrackId(trackId: TrackId) {
+  setFocusedTrackId(trackId: string) {
+    const trackIds = Object.keys(this.state.activeTracks)
     let index = trackIds.indexOf(trackId)
     const focusedTrackId = trackIds[index]
     this.setState({ focusedTrackId })
@@ -239,13 +400,18 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     let milestone = prevMilestone + delta
     if (milestone < 0) milestone = 0
     if (milestone > 5) milestone = 5
-    this.handleTrackMilestoneChange(this.state.focusedTrackId, ((milestone: any): Milestone))
+    this.handleTrackMilestoneChange(this.state.focusedTrackId, coerceMilestone(milestone))
   }
 
-  setTitle(title: string) {
-    let titles = eligibleTitles(this.state.milestoneByTrack)
-    title = titles.indexOf(title) == -1 ? titles[0] : title
-    this.setState({ title })
+  handleTeamChange(team: string) {
+    let tracks = tracksByTeam(team)
+    this.setState({
+      team,
+      milestoneByTrack: milestoneByTrack(tracks),
+      activeTracks: tracks,
+      focusedTrackId: Object.keys(tracks)[0],
+      categoryColorScale: categoryColorScale(tracks)
+    })
   }
 }
 

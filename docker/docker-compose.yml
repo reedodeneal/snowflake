@@ -1,0 +1,12 @@
+eng-growth:
+  image: registry.icg360.net/eng-growth:${VERSION}
+  container_name: eng-growth
+  expose:
+    - 3000
+  ports:
+    - 3000:3000
+  environment:
+    - ENVIRONMENT
+  labels:
+    io.rancher.container.pull_image: always
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}

@@ -1,0 +1,13 @@
+eng-growth-backend:
+  image: registry.icg360.net/eng-growth-backend:${VERSION}
+  container_name: eng-growth-backend
+  expose:
+    - 3001
+  ports:
+    - 3001:3001
+  environment:
+    - SECRET
+    - ENVIRONMENT
+  labels:
+    io.rancher.container.pull_image: always
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}

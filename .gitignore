@@ -1,4 +1,12 @@
+*.tar
+*.env
+.idea
+*/venv
+*/__pycache__
+.DS_Store
 .next
 node_modules
 out
 yarn-error.log
+backend/docker/vars/*.env
+package-lock.json

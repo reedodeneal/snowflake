@@ -1,0 +1,2 @@
+// @flow
+declare module 'keycloak-js' { declare module.exports: any }
