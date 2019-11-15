@@ -11,6 +11,7 @@ import PointSummaries from '../components/PointSummaries'
 import type { Milestone, MilestoneMap, TrackMap } from '../constants'
 import React from 'react'
 import TeamSelector from '../components/TeamSelector'
+import LoadingOverlay from 'react-loading-overlay'
 
 const developmentTracks = require('../tracks/development.json')
 const designTracks = require('../tracks/design.json')
@@ -23,7 +24,8 @@ type SnowflakeAppState = {
   team: string,
   activeTracks: TrackMap,
   focusedTrackId: string,
-  categoryColorScale: Function
+  categoryColorScale: Function,
+  loading: bool
 }
 
 const tracksByTeam = (team: string): TrackMap => {
@@ -102,7 +104,8 @@ const emptyState = (): SnowflakeAppState => {
     milestoneByTrack: milestoneByTrack(developmentTracks),
     activeTracks: developmentTracks,
     focusedTrackId: 'MOBILE',
-    categoryColorScale: categoryColorScale(developmentTracks)
+    categoryColorScale: categoryColorScale(developmentTracks),
+    loading: false
   }
 }
 
@@ -113,7 +116,8 @@ const defaultState = (): SnowflakeAppState => {
     milestoneByTrack: milestoneByTrack(developmentTracks),
     activeTracks: developmentTracks,
     focusedTrackId: 'MOBILE',
-    categoryColorScale: categoryColorScale(developmentTracks)
+    categoryColorScale: categoryColorScale(developmentTracks),
+    loading: false
   }
 }
 
@@ -137,9 +141,11 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     var xhr = new XMLHttpRequest()
     xhr.open('GET', 'http://localhost:3001/get?username=john.patterson')
     xhr.send()
+    this.setState({loading: true})
     xhr.addEventListener('load', () => {
-    const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
-    this.setState(dataToState(json))
+      const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
+      this.setState(dataToState(json))
+      this.setState({loading: false})
     })
   }
 
@@ -151,14 +157,25 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
       "tracksByTeam": stateToValuesHash(this.state),
       "team": this.state.team
     }
-    fetch('http://localhost:3001/update', {
-      method: 'POST',
-      body: JSON.stringify(data),
+
+    this.setState({ loading: true }, () => {
+      fetch('http://localhost:3001/update', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }).then(
+        this.setState({loading: false}));
     });
+
   }
 
   render() {
+    const { loading } = this.state;
     return (
+    <LoadingOverlay
+      active={loading}
+      spinner
+      text='loading...'
+    >
       <main>
         <style jsx global>{`
           body {
@@ -184,20 +201,21 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
           }
 
         `}</style>
+        {loading ? <LoadingOverlay />:<div/>}
         <div style={{margin: '19px auto 0', width: 450}}>
           <a href="https://sagesure.com/" target="_blank">
             <Wordmark />
           </a>
         </div>
-        <div>
-          <form onSubmit={this.handleSubmit}>
-            <button>Save Profile</button>
-          </form>
-        </div>
         <div style={{display: 'flex'}}>
           <div style={{flex: 1}}>
             <div className="name-field">
               {this.state.name}
+            </div>
+            <div>
+              <form onSubmit={this.handleSubmit}>
+                <button>Save Profile</button>
+              </form>
             </div>
             <form>
               <TeamSelector
@@ -245,7 +263,9 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
           </div>
         </div>
       </main>
+    </LoadingOverlay>
     )
+
   }
 
   handleTrackMilestoneChange(trackId: string, milestone: Milestone) {
