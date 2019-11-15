@@ -1,5 +1,5 @@
 {
-  "ANALYSIS/ADMINSTRATION": {
+  "ANALYSIS_ADMINSTRATION": {
       "displayName": "Analysis / Adminstration",
       "category": "A",
       "description": "Digests requirements and provides thoughtful recommendations about the product all while ensuring quality is met on the project and application level. ",
@@ -71,7 +71,7 @@
           }
       ]
   },
-  "ISSUE MANAGEMENT": {
+  "ISSU_MANAGEMENT": {
       "displayName": "Issue Management",
       "category": "A",
       "description": "Writes test cases that efficiently validate the expected behaviors, manages test libraries to ensure tests remain valid and captures defects while accurately logging reproducible behavior.",
@@ -143,7 +143,7 @@
           }
       ]
   },
-  "TEST EXECUTION": {
+  "TEST_EXECUTION": {
       "displayName": "Test Execution",
       "category": "A",
       "description": "Tests software to identify if the expected results are met or not.",
@@ -215,7 +215,7 @@
           }
       ]
   },
-  "TEST AUTOMATION": {
+  "TEST_AUTOMATION": {
       "displayName": "Test Automation",
       "category": "A",
       "description": "Utilizing tools which test software to identify where the expected results are met or not.        ",
@@ -288,7 +288,7 @@
       ]
   },
 
-  "PROJECT MANAGEMENT": {
+  "PROJECT_MANAGEMENT": {
       "displayName": "Project Management",
       "category": "B",
       "description": "Delivers well-scoped programs of work that meet their goals, on time, to budget, harmoniously",
@@ -432,7 +432,7 @@
           }
       ]
   },
-  "CRAFT QUALITY": {
+  "CRAFT_QUALITY": {
       "displayName": "Craft Quality",
       "category": "B",
       "description": "Embodies and promotes practices to ensure excellent quality products and services",
@@ -504,7 +504,7 @@
           }
       ]
   },
-  "INSTITUTIONAL KNOWLEDGE": {
+  "INSTITUTIONAL_KNOWLEDGE": {
       "displayName": "Institutional Knowledge",
       "category": "B",
       "description": "Seeks to improve Skookum through making local learnings have a larger impact across Skookum.",
@@ -577,7 +577,7 @@
       ]
   },
 
-  "CAREER DEVELOPMENT": {
+  "CAREER_DEVELOPMENT": {
       "displayName": "Career Development",
       "category": "C",
       "description": "Provides strategic support to engineers to help them build the career they want",
@@ -794,7 +794,7 @@
       ]
   },
 
-  "SALES AND MARKETING SUPPORT": {
+  "SALES_AND_MARKETING_SUPPORT": {
       "displayName": "Sales and Marketing Support",
       "category": "D",
       "description": "Helps the sales and marketing teams sell our services in order to increase the number of people that we can help",
@@ -866,7 +866,7 @@
           }
       ]
   },
-  "CUSTOMER VALUE": {
+  "CUSTOMER_VALUE": {
       "displayName": "Customer Value",
       "category": "D",
       "description": "Creates more value for our customers in order to increase retention and provide a world class experience. We focus on value not cost",

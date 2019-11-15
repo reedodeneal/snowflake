@@ -1,297 +1,5 @@
 {
-  "PRODUCT 1": {
-    "displayName": "Product 1",
-    "category": "A",
-    "description": "",
-    "milestones": [
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      }
-    ]
-  },
-
-  "PRODUCT 2": {
-    "displayName": "Product 2",
-    "category": "A",
-    "description": "",
-    "milestones": [
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      }
-    ]
-  },
-
-  "PRODUCT 3": {
-    "displayName": "Product 3",
-    "category": "A",
-    "description": "",
-    "milestones": [
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      }
-    ]
-  },
-
-  "PRODUCT 4": {
-    "displayName": "Product 4",
-    "category": "A",
-    "description": "",
-    "milestones": [
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      },
-      {
-        "summary": "",
-        "signals": [
-          "",
-          "",
-          ""
-        ],
-        "examples": [
-          "",
-          "",
-          ""
-        ]
-      }
-    ]
-  },
-
-  "PROJECT MANAGEMENT": {
+  "PROJECT_MANAGEMENT": {
       "displayName": "Project Management",
       "category": "B",
       "description": "Delivers well-scoped programs of work that meet their goals, on time, to budget, harmoniously",
@@ -435,7 +143,7 @@
           }
       ]
   },
-  "CRAFT QUALITY": {
+  "CRAFT_QUALITY": {
       "displayName": "Craft Quality",
       "category": "B",
       "description": "Embodies and promotes practices to ensure excellent quality products and services",
@@ -507,7 +215,7 @@
           }
       ]
   },
-  "INSTITUTIONAL KNOWLEDGE": {
+  "INSTITUTIONAL_KNOWLEDGE": {
       "displayName": "Institutional Knowledge",
       "category": "B",
       "description": "Seeks to improve Skookum through making local learnings have a larger impact across Skookum.",
@@ -580,7 +288,7 @@
       ]
   },
 
-  "CAREER DEVELOPMENT": {
+  "CAREER_DEVELOPMENT": {
       "displayName": "Career Development",
       "category": "C",
       "description": "Provides strategic support to engineers to help them build the career they want",
@@ -797,7 +505,7 @@
       ]
   },
 
-  "SALES AND MARKETING SUPPORT": {
+  "SALES_AND_MARKETING_SUPPORT": {
       "displayName": "Sales and Marketing Support",
       "category": "D",
       "description": "Helps the sales and marketing teams sell our services in order to increase the number of people that we can help",
@@ -869,7 +577,7 @@
           }
       ]
   },
-  "CUSTOMER VALUE": {
+  "CUSTOMER_VALUE": {
       "displayName": "Customer Value",
       "category": "D",
       "description": "Creates more value for our customers in order to increase retention and provide a world class experience. We focus on value not cost",

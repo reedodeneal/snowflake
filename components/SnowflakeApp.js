@@ -39,14 +39,28 @@ const tracksByTeam = (team: string): TrackMap => {
   }
 }
 
-const hashToState = (hash: String): ?SnowflakeAppState => {
-  if (!hash) return null
+const dataToState = (data: JSON): ?SnowflakeAppState => {
+  if (!data) return null
+  const hashValues = JSON.stringify(data.tracksByTeam).replace(/["]+/g, '').split(',')
   const result = defaultState()
+  const tracks = tracksByTeam(data.team)
+  result.name = data.username
+  result.team = data.team
+  result.activeTracks = tracks
+  result.milestoneByTrack = milestoneByTrack(tracks)
+  result.focusedTrackId = Object.keys(tracks)[0]
+  result.categoryColorScale = categoryColorScale(tracks)
+  const trackIds = Object.keys(result.activeTracks)
+  trackIds.forEach((trackId, i) => {
+    result.milestoneByTrack[trackId] = coerceMilestone(Number(hashValues[i]))
+  })
+  return result
+  /*
   const hashValues = hash.split('#')[1].split(',')
   if (!hashValues) return null
   if (hashValues[14]) result.name = decodeURI(hashValues[14])
   if (hashValues[15]) {
-    result.team = decodeURI(hashValues[15])
+    result.team = data.team
     const tracks = tracksByTeam(result.team)
     result.activeTracks = tracks
     result.milestoneByTrack = milestoneByTrack(tracks)
@@ -58,6 +72,7 @@ const hashToState = (hash: String): ?SnowflakeAppState => {
     result.milestoneByTrack[trackId] = coerceMilestone(Number(hashValues[i]))
   })
   return result
+  */
 }
 
 const coerceMilestone = (value: number): Milestone => {
@@ -102,11 +117,10 @@ const defaultState = (): SnowflakeAppState => {
   }
 }
 
-
-const stateToHash = (state: SnowflakeAppState) => {
+const stateToValuesHash = (state: SnowflakeAppState) => {
   if (!state || !state.milestoneByTrack) return null
   const trackIds = Object.keys(state.activeTracks)
-  const values = trackIds.map(trackId => state.milestoneByTrack[trackId]).concat(encodeURI(state.name), encodeURI(state.team))
+  const values = trackIds.map(trackId => state.milestoneByTrack[trackId])
   return values.join(',')
 }
 
@@ -116,20 +130,31 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
   constructor(props: Props) {
     super(props)
     this.state = emptyState()
-  }
-
-  componentDidUpdate() {
-    const hash = stateToHash(this.state)
-    if (hash) window.location.replace(`#${hash}`)
+    this.handleSubmit = this.handleSubmit.bind(this);
   }
 
   componentDidMount() {
-    const state = hashToState(window.location.hash)
-    if (state) {
-      this.setState(state)
-    } else {
-      this.setState(defaultState())
+    var xhr = new XMLHttpRequest()
+    xhr.open('GET', 'http://localhost:3001/get?username=john.patterson')
+    xhr.send()
+    xhr.addEventListener('load', () => {
+    const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
+    this.setState(dataToState(json))
+    })
+  }
+
+  handleSubmit(event) {
+    event.preventDefault();
+    const data = {
+      "username": this.state.name,
+      "name": this.state.name,
+      "tracksByTeam": stateToValuesHash(this.state),
+      "team": this.state.team
     }
+    fetch('http://localhost:3001/update', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   render() {
@@ -143,7 +168,7 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
             width: 960px;
             margin: 0 auto;
           }
-          .name-input {
+          .name-field {
             border: none;
             display: block;
             border-bottom: 2px solid #fff;
@@ -152,10 +177,6 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
             font-weight: bold;
             width: 380px;
             margin-bottom: 10px;
-          }
-          .name-input:hover, .name-input:focus {
-            border-bottom: 2px solid #ccc;
-            outline: 0;
           }
           a {
             color: #888;
@@ -168,16 +189,17 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
             <Wordmark />
           </a>
         </div>
+        <div>
+          <form onSubmit={this.handleSubmit}>
+            <button>Save Profile</button>
+          </form>
+        </div>
         <div style={{display: 'flex'}}>
           <div style={{flex: 1}}>
+            <div className="name-field">
+              {this.state.name}
+            </div>
             <form>
-              <input
-                  type="text"
-                  className="name-input"
-                  value={this.state.name}
-                  onChange={e => this.setState({name: e.target.value})}
-                  placeholder="Name"
-                  />
               <TeamSelector
                   milestoneByTrack={this.state.milestoneByTrack}
                   currentTeam={this.state.team}
