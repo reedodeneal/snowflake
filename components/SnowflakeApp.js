@@ -57,24 +57,6 @@ const dataToState = (data: JSON): ?SnowflakeAppState => {
     result.milestoneByTrack[trackId] = coerceMilestone(Number(hashValues[i]))
   })
   return result
-  /*
-  const hashValues = hash.split('#')[1].split(',')
-  if (!hashValues) return null
-  if (hashValues[14]) result.name = decodeURI(hashValues[14])
-  if (hashValues[15]) {
-    result.team = data.team
-    const tracks = tracksByTeam(result.team)
-    result.activeTracks = tracks
-    result.milestoneByTrack = milestoneByTrack(tracks)
-    result.focusedTrackId = Object.keys(tracks)[0]
-    result.categoryColorScale = categoryColorScale(tracks)
-  }
-  const trackIds = Object.keys(result.activeTracks)
-  trackIds.forEach((trackId, i) => {
-    result.milestoneByTrack[trackId] = coerceMilestone(Number(hashValues[i]))
-  })
-  return result
-  */
 }
 
 const coerceMilestone = (value: number): Milestone => {
@@ -105,7 +87,8 @@ const emptyState = (): SnowflakeAppState => {
     activeTracks: developmentTracks,
     focusedTrackId: 'MOBILE',
     categoryColorScale: categoryColorScale(developmentTracks),
-    loading: false
+    loading: false,
+    isError: false
   }
 }
 
@@ -117,7 +100,8 @@ const defaultState = (): SnowflakeAppState => {
     activeTracks: developmentTracks,
     focusedTrackId: 'MOBILE',
     categoryColorScale: categoryColorScale(developmentTracks),
-    loading: false
+    loading: false,
+    isError: false
   }
 }
 
@@ -143,9 +127,17 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     xhr.send()
     this.setState({loading: true})
     xhr.addEventListener('load', () => {
-      const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
-      this.setState(dataToState(json))
-      this.setState({loading: false})
+      if(xhr.status == 200) {
+        const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
+        this.setState(dataToState(json))
+        this.setState({loading: false})
+      } else if(xhr.status == 404) {
+        this.setState({name:"New User"})
+        this.setState({loading: false})
+      } else {
+        this.setState({isError: "Error retrieving your data from the DB"})
+        this.setState({loading: false})
+      }
     })
   }
 
@@ -159,7 +151,7 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     }
 
     this.setState({ loading: true }, () => {
-      fetch('http://localhost:3001/update', {
+      fetch('http://localhost:3001/post', {
         method: 'POST',
         body: JSON.stringify(data),
       }).then(
