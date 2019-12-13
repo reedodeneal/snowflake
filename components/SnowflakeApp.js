@@ -13,6 +13,9 @@ import React from 'react'
 import TeamSelector from '../components/TeamSelector'
 import LoadingOverlay from 'react-loading-overlay'
 
+// workaround until SSR support for react-keycloak is pushed
+const Keycloak = typeof window !== 'undefined' ? require('keycloak-js') : null
+
 const developmentTracks = require('../tracks/development.json')
 const designTracks = require('../tracks/design.json')
 const productTracks = require('../tracks/product.json')
@@ -46,7 +49,8 @@ const dataToState = (data: JSON): ?SnowflakeAppState => {
   const hashValues = JSON.stringify(data.tracksByTeam).replace(/["]+/g, '').split(',')
   const result = defaultState()
   const tracks = tracksByTeam(data.team)
-  result.name = data.username
+  result.userName = data.username
+  result.preferredName = data.name
   result.team = data.team
   result.activeTracks = tracks
   result.milestoneByTrack = milestoneByTrack(tracks)
@@ -81,7 +85,8 @@ const milestoneByTrack = (trackMap: TrackMap): MilestoneMap => {
 
 const emptyState = (): SnowflakeAppState => {
   return {
-    name: '',
+    userName: '',
+    preferredName: '',
     team: 'Development',
     milestoneByTrack: milestoneByTrack(developmentTracks),
     activeTracks: developmentTracks,
@@ -94,7 +99,8 @@ const emptyState = (): SnowflakeAppState => {
 
 const defaultState = (): SnowflakeAppState => {
   return {
-    name: '',
+    userName: '',
+    preferredName: '',
     team: 'Development',
     milestoneByTrack: milestoneByTrack(developmentTracks),
     activeTracks: developmentTracks,
@@ -119,33 +125,73 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
     super(props)
     this.state = emptyState()
     this.handleSubmit = this.handleSubmit.bind(this);
+    this.handleLogout = this.handleLogout.bind(this);
   }
 
   componentDidMount() {
-    var xhr = new XMLHttpRequest()
-    xhr.open('GET', 'http://localhost:3001/get?username=john.patterson')
-    xhr.send()
-    this.setState({loading: true})
-    xhr.addEventListener('load', () => {
-      if(xhr.status == 200) {
-        const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
-        this.setState(dataToState(json))
-        this.setState({loading: false})
-      } else if(xhr.status == 404) {
-        this.setState({name:"New User"})
-        this.setState({loading: false})
-      } else {
-        this.setState({isError: "Error retrieving your data from the DB"})
-        this.setState({loading: false})
-      }
-    })
+    let initOptions = {
+        url: 'https://keycloak.icg360.net/auth',
+        realm: 'icg360',
+        clientId: 'snowflake',
+        onLoad: 'login-required'
+    }
+
+    const keycloak = Keycloak(initOptions);
+    keycloak.init({ onLoad: initOptions.onLoad }).success((auth) => {
+
+        if (!auth) {
+            window.location.reload();
+        }
+
+        localStorage.setItem("react-token", keycloak.token);
+        localStorage.setItem("react-refresh-token", keycloak.refreshToken);
+        let loggedInUsername = keycloak.tokenParsed.preferred_username
+        let loggedInUserPreferredName = keycloak.tokenParsed.name
+
+        setTimeout(() => {
+            keycloak.updateToken(70).success((refreshed) => {
+                if (refreshed) {
+                    console.debug('Token refreshed' + refreshed);
+                } else {
+                    console.warn('Token not refreshed, valid for '
+                        + Math.round(keycloak.tokenParsed.exp + keycloak.timeSkew - new Date().getTime() / 1000) + ' seconds');
+                }
+            }).error(() => {
+                console.error('Failed to refresh token');
+            });
+
+
+        }, 60000)
+
+        var xhr = new XMLHttpRequest()
+        xhr.open('GET', 'http://localhost:3001/get?username=' + loggedInUsername)
+        xhr.send()
+        this.setState({loading: true})
+        xhr.addEventListener('load', () => {
+          if(xhr.status == 200) {
+            const json = JSON.parse(xhr.responseText.replace(/["]+/g, '').replace(/['']+/g, '"'))
+            this.setState(dataToState(json))
+            this.setState({loading: false})
+          } else if(xhr.status == 404) {
+            this.setState({preferredName:loggedInUserPreferredName})
+            this.setState({userName:loggedInUsername})
+            this.setState({loading: false})
+          } else {
+            this.setState({isError: "Error retrieving your data from the DB"})
+            this.setState({loading: false})
+          }
+        })
+
+    }).error(() => {
+        console.error("Authenticated Failed");
+    });
   }
 
   handleSubmit(event) {
-    event.preventDefault();
+    //event.preventDefault();
     const data = {
-      "username": this.state.name,
-      "name": this.state.name,
+      "username": this.state.userName,
+      "name": this.state.preferredName,
       "tracksByTeam": stateToValuesHash(this.state),
       "team": this.state.team
     }
@@ -158,6 +204,18 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
         this.setState({loading: false}));
     });
 
+  }
+
+  handleLogout(event) {
+    fetch("https://keycloak.icg360.net/auth/realms/icg360/protocol/openid-connect/logout", {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: new Headers({
+                 'Content-Type': 'application/x-www-form-urlencoded',
+                 'Authorization': 'Bearer ' + localStorage.getItem("react-token"),
+        }),
+      body: "client_id=snowflake&refresh_token=" + localStorage.getItem("react-refresh-token")
+    })
   }
 
   render() {
@@ -193,6 +251,7 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
           }
 
         `}</style>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"/>
         {loading ? <LoadingOverlay />:<div/>}
         <div style={{margin: '19px auto 0', width: 450}}>
           <a href="https://sagesure.com/" target="_blank">
@@ -201,14 +260,31 @@ class SnowflakeApp extends React.Component<Props, SnowflakeAppState> {
         </div>
         <div style={{display: 'flex'}}>
           <div style={{flex: 1}}>
-            <div className="name-field">
-              {this.state.name}
+            
+            <header className="d-flex flex-column flex-md-row align-items-center p-2 px-md-3 mb-2 bg-white border-bottom shadow-sm">
+              <div className="name-field">
+              {this.state.preferredName}
             </div>
-            <div>
-              <form onSubmit={this.handleSubmit}>
-                <button>Save Profile</button>
-              </form>
-            </div>
+              <button
+                type="button"
+                className="mx-2 btn btn-outline-primary"
+                onClick={() => {
+                  this.handleSubmit()
+                  }}
+              >
+              Save
+              </button>
+              <button
+                type="button"
+                className="mx-2 btn btn-outline-primary"
+                onClick={() => {
+                  this.handleLogout()
+                  window.location.reload()
+                  }}
+              >
+              Logout
+              </button>
+            </header>
             <form>
               <TeamSelector
                   milestoneByTrack={this.state.milestoneByTrack}
