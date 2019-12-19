@@ -25,7 +25,6 @@ eng-growth-ui:build:
       - tags
       - master
   script:
-    - npm install -g yarn
     - yarn
     - yarn export
     - tar -czf build-ui.tar --exclude='backend/' --exclude='docker/' --exclude='*.tar' .
